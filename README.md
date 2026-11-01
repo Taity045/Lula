@@ -110,5 +110,3 @@ These are proposed alerts; no Prometheus server or alert rules are deployed here
 ## Azure
 
 [The Terraform README](terraform/README.md) explains Container Apps, private PostgreSQL, Key Vault, costs and protecting state. Database setup and the app secret must be ready before enabling the app.
-
-Next production work would be a concurrent-traffic test, workload-based batch sizing, database permissions, and a tested deployment and recovery process.
