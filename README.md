@@ -107,10 +107,8 @@ Limit: CI checks the API after migration. It does not yet prove API behaviour un
 
 These are proposed alerts; no Prometheus server or alert rules are deployed here.
 
-## Azure and AI use
+## Azure
 
 [The Terraform README](terraform/README.md) explains Container Apps, private PostgreSQL, Key Vault, costs and protecting state. Database setup and the app secret must be ready before enabling the app.
-
-I used AI to explain SQL, draft files and review errors. I ran the commands and checked their output. We chose golang-migrate for version tracking, kept the backfill separate, and skipped extra tracing and latency metrics to keep the exercise focused. AI also helped write this documentation.
 
 Next production work would be a concurrent-traffic test, workload-based batch sizing, database permissions, and a tested deployment and recovery process.
