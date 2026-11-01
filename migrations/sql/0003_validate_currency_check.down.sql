@@ -1,0 +1,2 @@
+-- No action needed. This step only checked the existing orders.
+-- To remove the rule, use the down file for migration 0002.
