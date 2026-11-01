@@ -1,13 +1,23 @@
-# Skeleton CI pipeline — fill in the steps.
-# On push, GitHub runs this on free runners (no cloud account needed). The `postgres`
-# service below is your ephemeral migration target — this CI run is the "deploy".
-name: ci
+name: CI
 
-on: [push]
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build-test-migrate:
+  build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -22,26 +32,75 @@ jobs:
           --health-interval 3s
           --health-timeout 3s
           --health-retries 10
+
     env:
-      DB_URL: postgresql://app:app@localhost:5432/app
+      DB_URL: postgres://app:app@localhost:5432/app?sslmode=disable
+      MIGRATE_VERSION: v4.20.1
+
     steps:
       - uses: actions/checkout@v4
 
-      # TODO (you):
-      # - Build the Docker image.
-      # - Run your tests.
-      # - Run your migration against the postgres service (DB_URL above).
-      # - Bonus: show the expand/contract rollout and/or the mid-run-failure handling.
+      - name: Install psql and migrate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          curl -fsSL \
+            "https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz" \
+            -o /tmp/migrate.tar.gz
+          tar -xzf /tmp/migrate.tar.gz -C /tmp migrate
+          sudo install /tmp/migrate /usr/local/bin/migrate
+          migrate -version
 
-  # Infrastructure as Code - validate only (no Azure account, no apply).
-  iac-validate:
+      - name: Build Docker image
+        run: docker build -t orders-api:ci .
+
+      - name: Check Bash syntax
+        run: |
+          bash -n scripts/migrate.sh
+          bash -n tests/test_migrations.sh
+
+      - name: Test recovery after a failed batch
+        run: bash tests/test_migrations.sh
+
+      - name: Run migrations again
+        run: bash scripts/migrate.sh
+
+      - name: Test app health and orders
+        run: |
+          docker run -d --name orders-api \
+            --network host \
+            -e DB_URL \
+            orders-api:ci
+
+          test "$(docker exec orders-api id -u)" = "10001"
+
+          curl --fail --silent --show-error \
+            --retry 10 --retry-connrefused --retry-delay 2 \
+            --max-time 5 \
+            http://127.0.0.1:8000/health
+
+          curl --fail --silent --show-error \
+            --max-time 5 \
+            http://127.0.0.1:8000/orders |
+            python3 -c 'import json, sys; orders = json.load(sys.stdin); assert len(orders) == 20, orders'
+
+      - name: Print container logs
+        if: always()
+        run: docker logs orders-api 2>&1 || true
+
+  check-terraform:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
-      - name: Terraform fmt
+
+      - name: Check Terraform formatting
         run: terraform -chdir=terraform fmt -check -recursive
-      - name: Terraform init (no backend)
+
+      - name: Download Terraform providers
         run: terraform -chdir=terraform init -backend=false
-      - name: Terraform validate
+
+      - name: Validate Terraform configuration
         run: terraform -chdir=terraform validate
