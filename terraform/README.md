@@ -1,6 +1,8 @@
 # Azure infrastructure
 
-This assessment uses validation only. Nothing is deployed to Azure.
+Validation only. Nothing is deployed.
+
+Run these commands from the repository root. They download the provider and check the configuration without creating resources.
 
 ```bash
 terraform -chdir=terraform fmt -check
@@ -8,7 +10,7 @@ terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform validate
 ```
 
-Container Apps Consumption runs the API and connects to private PostgreSQL 16. The app's managed identity reads its database connection string from Key Vault. Logs go to an existing Log Analytics workspace.
+The design uses Container Apps Consumption for the API and private PostgreSQL 16 for orders. The app would use managed identity to read its database connection string from Key Vault. Logs would go to an existing Log Analytics workspace.
 
 - `main.tf`: resource group and tags.
 - `app.tf`: compute, HTTPS ingress and readiness check.
@@ -49,5 +51,3 @@ Consumption avoids operating a new AKS cluster for a single service. The app use
 The burstable database, seven-day backups and no high availability are development choices. Production sizing, minimum replicas, availability and restore testing need workload and recovery requirements. PostgreSQL is open source; the managed service reduces patching and backup administration compared with self-hosting.
 
 API ingress is public HTTPS and this starter has no application authentication. Key Vault uses its public endpoint with RBAC. Production exposure needs an access-control design and appropriate network restrictions. Validation does not check Azure capacity, regional SKU availability, permissions, connectivity or an actual rollout.
-
-References: [Container App resource](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/container_app), [Container Apps networking](https://learn.microsoft.com/en-us/azure/container-apps/networking), [Azure Storage state backend](https://developer.hashicorp.com/terraform/language/backend/azurerm).
