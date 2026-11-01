@@ -2,3 +2,10 @@ __pycache__/
 *.pyc
 .env
 .venv/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
